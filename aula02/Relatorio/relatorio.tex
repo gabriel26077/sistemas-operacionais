@@ -1,5 +1,152 @@
-\documentclass{article}
+\documentclass[12pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{parskip}          % espaçamento entre parágrafos
+\usepackage{titlesec}         % personalizar títulos
+\usepackage{inconsolata}      % fonte monoespaçada moderna
+\usepackage{xcolor}
+\usepackage{listings}
+
+% Estilo visual moderno para código
+\lstdefinestyle{modern}{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{gray!20},
+  keywordstyle=\color{blue!70!black}\bfseries,
+  commentstyle=\color{green!40!black}\itshape,
+  numberstyle=\tiny\color{gray},
+  numbers=left,
+  frame=none,
+  breaklines=true,
+  tabsize=2
+}
+
+% Títulos em negrito sem numeração
+\titleformat{\section}{\large\bfseries\sffamily}{}{0em}{}
+\titleformat{\subsection}{\normalsize\bfseries\sffamily}{}{0em}{}
+
+% ===================== CABEÇALHO =====================
+\title{\textbf{Relatório de Atividade Prática \\ Aula 02 – Sistemas Operacionais (DCA3505)} \\[0.5em]
+\large Universidade Federal do Rio Grande do Norte}
+\author{Gabriel S. N. Neto}
+\date{21 de agosto de 2025}
+% =====================================================
+
 
 \begin{document}
-    asd
+
+\maketitle
+\vspace{2em} 
+
+\section*{Exemplo de programa mínimo em Assembly}
+
+\textbf{Escreva um código mínimo em linguagem de montagem que contenha apenas uma instrução
+para atribuir um valor a um registrador da CPU. Compile-o com flags apropriadas para
+evitar que o compilador adicione bibliotecas ou instruções extras. Ao executar o programa,
+você deverá observar uma falha de segmentação (\textit{segmentation fault}).}
+
+\vspace{1em}
+
+\begin{lstlisting}[style=modern, language={[x86masm]Assembler}]
+.intel_syntax noprefix
+.global _start
+
+_start:
+    mov eax, 5
+\end{lstlisting}
+
+Este código ASM possui apenas uma instrução: atribui o valor 5 ao registrador \texttt{EAX}.  
+
+\subsection*{Compilação}
+
+\begin{lstlisting}[style=modern, language=bash]
+gcc -nostdlib -nostartfiles -static -Wl,-e,_start \
+    -o prog1-intel codigo1-intel-sintaxe.s
+\end{lstlisting}
+
+\textbf{Opções utilizadas:}
+
+\begin{itemize}
+  \item \texttt{-nostdlib} – não usar a biblioteca padrão
+  \item \texttt{-nostartfiles} – não usar arquivos de inicialização padrão
+  \item \texttt{-static} – gerar binário estático (sem dependências dinâmicas)
+  \item \texttt{-Wl,-e,\_start} – informar ao linker que o ponto de entrada é \texttt{\_start}
+  \item \texttt{-o prog1-intel} – nome do executável gerado
+  \item \texttt{codigo1-intel-sintaxe.s} – arquivo fonte em assembly
+\end{itemize}
+
+\subsection*{Execução e falha}
+
+Ao executar o programa com \texttt{./prog1-intel}, a saída é:  
+\texttt{Segmentation fault (core dumped)}.  
+
+Isso ocorre porque o programa não realiza uma chamada de sistema para encerrar sua execução
+(\texttt{exit}), de modo que o processador continua a executar instruções inválidas.
+Isso resulta em uma exceção de proteção, tratada pelo sistema operacional como falha de
+segmentação.
+
+\section*{Código corrigido}
+
+\begin{lstlisting}[style=modern, language={[x86masm]Assembler}]
+.intel_syntax noprefix
+.global _start
+
+_start:
+    mov rbx, 5      # coloca o valor 5 em RBX
+    mov rax, 60     # cohdigo da syscall "exit" no Linux
+    mov rdi, 0      # cohigo de retorno (exit code 0)
+    syscall         # invoca a chamada de sistema
+\end{lstlisting}
+
+\textbf{Explicação:}
+
+\begin{itemize}
+  \item \texttt{mov rbx, 5} – coloca o valor 5 no registrador \texttt{RBX}.
+  \item \texttt{mov rax, 60} – define o número da chamada de sistema \texttt{exit}.
+  \item \texttt{mov rdi, 0} – define o código de saída (retorno 0).
+  \item \texttt{syscall} – executa a chamada de sistema, encerrando o programa.
+\end{itemize}
+
+\newpage
+
+\section*{Usando \texttt{strace}}
+
+\begin{lstlisting}[style=modern, language=bash]
+gsnn@desktop-gsnn:~/so/aula02$ strace ./prog1-intel 
+execve("./prog1-intel", ["./prog1-intel"], 0x7ffe9223c110 /* 39 vars */) = 0
+--- SIGSEGV {si_signo=SIGSEGV, si_code=SEGV_MAPERR, si_addr=0x5} ---
++++ killed by SIGSEGV (core dumped) +++
+Segmentation fault (core dumped)
+
+gsnn@desktop-gsnn:~/so/aula02$ strace ./prog2-intel 
+execve("./prog2-intel", ["./prog2-intel"], 0x7ffdb9817f20 /* 39 vars */) = 0
+exit(0)                                 = ?
++++ exited with 0 +++
+\end{lstlisting}
+
+A saída do \texttt{strace} evidencia a diferença entre os dois programas: no primeiro caso, 
+após a atribuição ao registrador, não há chamada de sistema para finalizar o processo, o que 
+faz com que o programa termine em \texttt{segmentation fault}. Já no segundo, observa-se a 
+execução explícita da chamada \texttt{exit(0)}, permitindo que o processo seja encerrado de 
+forma correta e controlada pelo sistema operacional.
+
+
+
+\section*{Discussão}
+
+
+\textbf{Por que foi necessário incluir uma chamada de sistema para encerrar corretamente o programa?}  
+
+A inclusão da chamada de sistema é necessária porque apenas o kernel tem autoridade para
+liberar os recursos do processo e marcar sua finalização. Sem isso, a CPU tenta executar
+instruções inválidas, resultando em falha de segmentação.  
+
+\textbf{Quais seriam as implicações se programas de usuário pudessem ser executados livremente?}  
+
+Se programas de usuário não dependessem do sistema operacional, haveria instabilidade,
+travamentos e falhas de segurança. A ausência de controle sobre memória e recursos
+permitiria que um processo comprometesse outros, além de colocar em risco o próprio kernel.  
+
 \end{document}
