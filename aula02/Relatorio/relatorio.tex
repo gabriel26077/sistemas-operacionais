@@ -83,9 +83,14 @@ Ao executar o programa com \texttt{./prog1-intel}, a saída é:
 \texttt{Segmentation fault (core dumped)}.  
 
 Isso ocorre porque o programa não realiza uma chamada de sistema para encerrar sua execução
-(\texttt{exit}), de modo que o processador continua a executar instruções inválidas.
-Isso resulta em uma exceção de proteção, tratada pelo sistema operacional como falha de
-segmentação.
+(\texttt{exit}), o que faz com que o registrador de instrução (PC/RIP) continue apontando para a próxima instrução,  
+fazendo com que o processador execute instruções que provavelmente serão inválidas —  
+instruções que ou não existem, ou que existem, mas muito provavelmente tentarão acessar ou modificar alguma área de memória não destinada ao processo.  
+Isso gera uma interrupção de hardware, que é tratada pelo sistema operacional como falha de segmentação.
+
+
+
+
 
 \section*{Código corrigido}
 
